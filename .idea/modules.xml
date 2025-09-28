@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../Pre-Trained-Spam-Detector-Rewriter/.idea/Pre-Trained-Spam-Detector-Rewriter.iml" filepath="$PROJECT_DIR$/../Pre-Trained-Spam-Detector-Rewriter/.idea/Pre-Trained-Spam-Detector-Rewriter.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/SpamRewriterApp.iml" filepath="$PROJECT_DIR$/.idea/SpamRewriterApp.iml" />
     </modules>
   </component>
