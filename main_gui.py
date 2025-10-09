@@ -11,7 +11,7 @@ import time
 
 # Import backend modules
 try:
-    from spam_detector import SpamDetector
+    from spamDetector import SpamDetector
     from llm_rewriter import EmailRewriter
     BACKENDS_AVAILABLE = True
 except ImportError as e:
@@ -26,7 +26,7 @@ class SpamDetectorRewriterGUI:
         self.setup_window()
 
         # Backend modules
-        self.spam_detector = None
+        self.spamDetector = None
         self.email_rewriter = None
         self.api_key = "AIzaSyApRtIWlXf8Ya_bImiYSk0g66CCphZFf3I"
 
@@ -40,20 +40,50 @@ class SpamDetectorRewriterGUI:
             messagebox.showerror("Error", f"Missing dependencies!\n\nInstall: pip install transformers torch google-generativeai\n\nError: {IMPORT_ERROR}")
 
     def setup_window(self):
-        """Configure main window"""
-        self.root.title("AI Email Spam Detector & Rewriter")
-        self.root.geometry("900x600")
-        self.root.minsize(700, 500)
+        """Configure the main window"""
+        self.root.title("AI Email Spam Detector & Professional Rewriter")
+        self.root.geometry("1000x700")
+        self.root.minsize(800, 600)
+
+        # Configure style
+        try:
+            style = ttk.Style()
+            style.theme_use('clam')
+        except:
+            pass  # Use default theme if clam not available
+
+    def show_dependency_error(self):
+        """Show dependency error message"""
+        error_msg = f"""
+Missing Required Dependencies!
+
+Please install the required packages:
+
+pip install transformers torch google-generativeai
+
+Error details: {IMPORT_ERROR if not BACKENDS_AVAILABLE else 'Unknown'}
+
+The application will run in demo mode with limited functionality.
+"""
+        messagebox.showwarning("Dependencies Missing", error_msg)
+        self.processing_info.config(text="Running in demo mode - install dependencies for full functionality")
 
     def initialize_backend(self):
         """Initialize backend modules"""
         def init():
             try:
-                self.spam_detector = SpamDetector()
+                self.root.after(0, lambda: self.processing_info.config(text="Loading spam detector..."))
+                self.spamDetector = SpamDetector()
+
+                self.root.after(0, lambda: self.processing_info.config(text="Loading email rewriter..."))
                 self.email_rewriter = EmailRewriter(api_key=self.api_key)
-                self.root.after(0, lambda: self.status_label.config(text="✅ Ready"))
+
+                self.root.after(0, lambda: self.processing_info.config(text="All models loaded successfully!"))
+
             except Exception as e:
-                self.root.after(0, lambda: messagebox.showerror("Error", f"Initialization failed: {str(e)}"))
+                error_msg = f"Failed to initialize: {str(e)}"
+                self.root.after(0, lambda: self.processing_info.config(text="Initialization failed"))
+                self.root.after(0, lambda: messagebox.showerror("Initialization Error", error_msg))
 
         thread = threading.Thread(target=init)
         thread.daemon = True
@@ -67,14 +97,14 @@ class SpamDetectorRewriterGUI:
 
         # Title
         title_label = ttk.Label(
-            main_frame,
-            text="🛡️ AI Email Spam Detector & Rewriter",
+            title_frame,
+            text="AI Email Spam Detector & Professional Rewriter",
             font=('Arial', 14, 'bold')
         )
         title_label.pack(pady=(0, 15))
 
         # Input section
-        input_frame = ttk.LabelFrame(main_frame, text="📧 Email Input", padding="10")
+        input_frame = ttk.LabelFrame(main_frame, text="Email Input", padding="10")
         input_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         self.email_text = scrolledtext.ScrolledText(
@@ -91,17 +121,28 @@ class SpamDetectorRewriterGUI:
 
         self.analyze_button = ttk.Button(
             button_frame,
-            text="🔍 Analyze & Rewrite",
+            text="Analyze & Rewrite Email",
             command=self.analyze_email
         )
         self.analyze_button.pack(side=tk.LEFT, padx=(0, 5))
 
         self.clear_button = ttk.Button(
             button_frame,
-            text="🗑️ Clear",
+            text="Clear All",
             command=self.clear_all
         )
-        self.clear_button.pack(side=tk.LEFT)
+        self.clear_button.pack(side=tk.LEFT, padx=(0, 5))
+
+        self.sample_button = ttk.Button(
+            button_frame,
+            text="Load Sample",
+            command=self.load_sample
+        )
+        self.sample_button.pack(side=tk.LEFT)
+
+        # Progress bar
+        self.progress = ttk.Progressbar(main_frame, mode='indeterminate')
+        self.progress.pack(fill=tk.X, pady=(0, 10))
 
         # Results section
         results_frame = ttk.Frame(main_frame)
@@ -111,8 +152,9 @@ class SpamDetectorRewriterGUI:
         left_frame = ttk.LabelFrame(results_frame, text="🛡️ Detection", padding="10")
         left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
 
-        self.spam_label = ttk.Label(left_frame, text="No analysis", font=('Arial', 11, 'bold'))
-        self.spam_label.pack(pady=5)
+        # Spam detection result
+        spam_frame = ttk.LabelFrame(left_frame, text="Detection Result", padding="10")
+        spam_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.confidence_label = ttk.Label(left_frame, text="")
         self.confidence_label.pack(pady=5)
@@ -120,8 +162,25 @@ class SpamDetectorRewriterGUI:
         self.status_label = ttk.Label(left_frame, text="Initializing...", foreground='gray')
         self.status_label.pack(pady=5)
 
-        # Right - Output
-        right_frame = ttk.LabelFrame(results_frame, text="✨ Rewritten Email", padding="10")
+        self.method_label = ttk.Label(spam_frame, text="", foreground='gray')
+        self.method_label.pack()
+
+        # Processing info
+        info_frame = ttk.LabelFrame(left_frame, text="Status", padding="10")
+        info_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.processing_info = ttk.Label(
+            info_frame,
+            text="Ready to analyze emails",
+            wraplength=200
+        )
+        self.processing_info.pack(anchor=tk.W)
+
+        self.timing_info = ttk.Label(info_frame, text="", foreground='gray')
+        self.timing_info.pack(anchor=tk.W, pady=(5, 0))
+
+        # Right column - Output
+        right_frame = ttk.LabelFrame(results_frame, text="Rewritten Email", padding="10")
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
         self.output_text = scrolledtext.ScrolledText(
@@ -137,8 +196,44 @@ class SpamDetectorRewriterGUI:
         output_btn_frame = ttk.Frame(right_frame)
         output_btn_frame.pack()
 
-        ttk.Button(output_btn_frame, text="📋 Copy", command=self.copy_result).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(output_btn_frame, text="💾 Save", command=self.save_result).pack(side=tk.LEFT)
+        self.copy_button = ttk.Button(
+            output_button_frame,
+            text="Copy Result",
+            command=self.copy_result
+        )
+        self.copy_button.pack(side=tk.LEFT, padx=(0, 5))
+
+        self.save_button = ttk.Button(
+            output_button_frame,
+            text="Save to File",
+            command=self.save_result
+        )
+        self.save_button.pack(side=tk.LEFT)
+
+    def update_char_count(self, event=None):
+        """Update character count"""
+        content = self.email_text.get("1.0", tk.END).strip()
+        char_count = len(content)
+        self.char_count_label.config(text=f"{char_count} characters")
+
+    def load_sample(self):
+        """Load a sample spam email"""
+        sample = """URGENT BUSINESS PROPOSAL!!!
+
+Hello Dear Friend,
+
+I hope this email finds you in good health. I am MR. JOHN SMITH from LONDON BANK.
+
+I have a BUSINESS PROPOSAL for you worth $15,000,000 (Fifteen Million USD) that will benefit both of us. This transaction is 100% RISK FREE and CONFIDENTIAL.
+
+Please contact me IMMEDIATELY for more details!!! Time is running out!!!
+
+Best Regards,
+Mr. John Smith"""
+
+        self.email_text.delete("1.0", tk.END)
+        self.email_text.insert("1.0", sample)
+        self.update_char_count()
 
     def analyze_email(self):
         """Analyze email"""
@@ -152,29 +247,72 @@ class SpamDetectorRewriterGUI:
             messagebox.showerror("Error", "Backend not initialized!")
             return
 
-        # Disable button
+        if not self.spamDetector or not self.email_rewriter:
+            messagebox.showerror("Error", "Backend models not initialized!")
+            return
+
+        # Disable button and start processing
         self.analyze_button.config(state=tk.DISABLED)
-        self.status_label.config(text="🔍 Processing...")
+        self.progress.start(10)
+        self.processing_info.config(text="Analyzing email...")
 
         # Process in background
         thread = threading.Thread(target=self.process_email, args=(email_content,))
         thread.daemon = True
         thread.start()
 
+    def show_demo_result(self):
+        """Show demo result when backends not available"""
+        email_content = self.email_text.get("1.0", tk.END).strip()
+
+        # Simple demo analysis
+        spam_keywords = ['urgent', 'money', 'click', 'limited', '$$$', '!!!']
+        spam_count = sum(1 for keyword in spam_keywords if keyword.lower() in email_content.lower())
+
+        is_spam = spam_count >= 2
+        confidence = min(0.5 + (spam_count * 0.1), 0.9)
+
+        # Update UI
+        if is_spam:
+            self.spam_result_label.config(text="SPAM DETECTED (Demo)", foreground='red')
+            demo_rewrite = f"[DEMO MODE - Install dependencies for full functionality]\n\nThis email appears to be spam and would be professionally rewritten using AI.\n\nOriginal email:\n{email_content[:200]}..."
+        else:
+            self.spam_result_label.config(text="Legitimate Email (Demo)", foreground='green')
+            demo_rewrite = "[DEMO MODE] This email appears legitimate and doesn't need rewriting."
+
+        self.confidence_label.config(text=f"Confidence: {confidence:.1%}")
+        self.method_label.config(text="Method: demo (keywords)")
+
+        # Show output
+        self.output_text.config(state=tk.NORMAL)
+        self.output_text.delete("1.0", tk.END)
+        self.output_text.insert("1.0", demo_rewrite)
+        self.output_text.config(state=tk.DISABLED)
+
+        self.processing_info.config(text="Demo analysis complete")
+
     def process_email(self, email_content):
         """Process email in background"""
         try:
             start_time = time.time()
 
-            # Spam detection
-            spam_result = self.spam_detector.predict_spam(email_content)
+            # Step 1: Spam detection
+            self.root.after(0, lambda: self.processing_info.config(text="Running spam detection..."))
+            spam_result = selfD.predict_spam(email_content)
 
             # Rewrite if spam
             if spam_result['is_spam']:
-                rewrite_result = self.email_rewriter.rewrite_email(email_content)
-                rewritten_text = rewrite_result['rewritten_text'] if rewrite_result['success'] else f"❌ Error: {rewrite_result['error']}"
+                self.root.after(0, lambda: self.processing_info.config(text="Rewriting email..."))
+                rewrite_start = time.time()
+                rewrite_result = self.email_rewriter.rewrite_email(email_content, instructions)
+                rewrite_time = time.time() - rewrite_start
+
+                if rewrite_result['success']:
+                    rewritten_text = rewrite_result['rewritten_text']
+                else:
+                    rewritten_text = f"Rewriting failed: {rewrite_result.get('error', 'Unknown error')}"
             else:
-                rewritten_text = "✅ Email is legitimate and doesn't need rewriting."
+                rewritten_text = "Email appears legitimate and doesn't require rewriting.\n\nIf you'd still like to enhance it professionally, you can modify the instructions and analyze again."
 
             total_time = time.time() - start_time
 
@@ -190,9 +328,9 @@ class SpamDetectorRewriterGUI:
         """Update GUI with results"""
         # Update detection display
         if spam_result['is_spam']:
-            self.spam_label.config(text="🚨 SPAM", foreground='red')
+            self.spam_result_label.config(text="SPAM DETECTED", foreground='red')
         else:
-            self.spam_label.config(text="✅ Legitimate", foreground='green')
+            self.spam_result_label.config(text="Legitimate Email", foreground='green')
 
         self.confidence_label.config(text=f"{spam_result['confidence']:.0%} confident")
 
@@ -204,7 +342,16 @@ class SpamDetectorRewriterGUI:
 
         # Reset button and status
         self.analyze_button.config(state=tk.NORMAL)
-        self.status_label.config(text=f"✅ Done ({total_time:.1f}s)")
+
+        status = "Spam detected and rewritten!" if spam_result['is_spam'] else "✅ Analysis complete"
+        self.processing_info.config(text=status)
+
+    def show_error(self, error_msg):
+        """Show error message"""
+        self.progress.stop()
+        self.analyze_button.config(state=tk.NORMAL)
+        self.processing_info.config(text="❌ Error occurred")
+        messagebox.showerror("Processing Error", error_msg)
 
     def copy_result(self):
         """Copy to clipboard"""
