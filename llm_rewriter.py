@@ -26,13 +26,12 @@ class EmailRewriter:
         self.logger = logging.getLogger(__name__)
         self.logger.info("EmailRewriter initialized with Gemini 2.5 Flash")
 
-    def rewrite_email(self, email_text: str, user_instructions: str = "") -> dict:
+    def rewrite_email(self, email_text: str) -> dict:
         """
         Rewrite email professionally
 
         Args:
             email_text: Original email
-            user_instructions: Custom instructions (optional)
 
         Returns:
             dict: {'success', 'rewritten_text', 'error', 'processing_time'}
@@ -49,17 +48,15 @@ class EmailRewriter:
                 }
 
             # Create prompt
-            base_prompt = """Rewrite this email to be professional, formal, and appropriate for business communication.
+            prompt = """Rewrite this email to be professional, formal, and appropriate for business communication.
 - Maintain the core message
 - Use professional language
 - Correct grammar and spelling
 - Remove spam characteristics
-- Make it concise and clear"""
+- Make it concise and clear
 
-            if user_instructions.strip():
-                base_prompt += f"\n\nAdditional instructions: {user_instructions}"
-
-            prompt = f"{base_prompt}\n\nOriginal Email:\n{email_text}\n\nRewritten Email:"
+Original Email:
+""" + email_text + "\n\nRewritten Email:"
 
             # Generate response
             response = self.model.generate_content(prompt)
@@ -113,7 +110,7 @@ contact me asap!!!"""
         print("\n" + "=" * 50 + "\n")
 
         # Rewrite
-        result = rewriter.rewrite_email(test_email, "Make it professional for business")
+        result = rewriter.rewrite_email(test_email)
 
         if result['success']:
             print("Rewritten Email:")
